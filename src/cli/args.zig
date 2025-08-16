@@ -35,6 +35,22 @@ pub const Args = struct {
     show_stat: bool = false,
     help: bool = false,
 
+    fn normalizeDateString(allocator: std.mem.Allocator, date_str: []const u8) ![]const u8 {
+        // Check if the string is a date-only format (YYYY-MM-DD)
+        if (date_str.len == 10 and date_str[4] == '-' and date_str[7] == '-') {
+            // Validate it's all digits except the dashes
+            for (date_str, 0..) |char, i| {
+                if (i == 4 or i == 7) continue; // Skip dashes
+                if (char < '0' or char > '9') break;
+            } else {
+                // It's a valid YYYY-MM-DD format, append time
+                return try std.fmt.allocPrint(allocator, "{s}T00:00:00", .{date_str});
+            }
+        }
+        // Return original string if not date-only format
+        return try allocator.dupe(u8, date_str);
+    }
+
     pub fn parse(allocator: std.mem.Allocator) !Args {
         var args = Args{};
         const argv = try std.process.argsAlloc(allocator);
@@ -58,11 +74,11 @@ pub const Args = struct {
             } else if (std.mem.eql(u8, arg, "--since")) {
                 if (i + 1 >= argv.len) return error.MissingSinceValue;
                 i += 1;
-                args.since = try allocator.dupe(u8, argv[i]);
+                args.since = try normalizeDateString(allocator, argv[i]);
             } else if (std.mem.eql(u8, arg, "--until")) {
                 if (i + 1 >= argv.len) return error.MissingUntilValue;
                 i += 1;
-                args.until = try allocator.dupe(u8, argv[i]);
+                args.until = try normalizeDateString(allocator, argv[i]);
             } else if (std.mem.eql(u8, arg, "--range")) {
                 if (i + 1 >= argv.len) return error.MissingRangeValue;
                 i += 1;
