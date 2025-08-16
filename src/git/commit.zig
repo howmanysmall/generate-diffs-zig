@@ -105,8 +105,22 @@ fn getCommitsByAuthor(
         .allocator = allocator,
         .argv = argv.items,
         .cwd = null,
-    }) catch {
-        return error.GitOperationFailed;
+        .max_output_bytes = 100 * 1024 * 1024, // 100MB for large repos
+    }) catch |err| {
+        switch (err) {
+            error.StdoutStreamTooLong => {
+                std.log.err("Git output too large (>100MB). Consider using more specific filters.", .{});
+                return error.GitOperationFailed;
+            },
+            error.StderrStreamTooLong => {
+                std.log.err("Git error output too large. Check git command.", .{});
+                return error.GitOperationFailed;
+            },
+            else => {
+                std.log.err("Git command failed: {}", .{err});
+                return error.GitOperationFailed;
+            },
+        }
     };
     defer allocator.free(result.stdout);
     defer allocator.free(result.stderr);
@@ -117,6 +131,9 @@ fn getCommitsByAuthor(
     }
 
     if (result.term.Exited != 0) {
+        if (result.stderr.len > 0) {
+            std.log.err("Git error: {s}", .{result.stderr});
+        }
         return;
     }
 
@@ -162,8 +179,22 @@ fn getCommitsByCommitter(
         .allocator = allocator,
         .argv = argv.items,
         .cwd = null,
-    }) catch {
-        return error.GitOperationFailed;
+        .max_output_bytes = 100 * 1024 * 1024, // 100MB for large repos
+    }) catch |err| {
+        switch (err) {
+            error.StdoutStreamTooLong => {
+                std.log.err("Git output too large (>100MB). Consider using more specific filters.", .{});
+                return error.GitOperationFailed;
+            },
+            error.StderrStreamTooLong => {
+                std.log.err("Git error output too large. Check git command.", .{});
+                return error.GitOperationFailed;
+            },
+            else => {
+                std.log.err("Git command failed: {}", .{err});
+                return error.GitOperationFailed;
+            },
+        }
     };
     defer allocator.free(result.stdout);
     defer allocator.free(result.stderr);
@@ -174,6 +205,9 @@ fn getCommitsByCommitter(
     }
 
     if (result.term.Exited != 0) {
+        if (result.stderr.len > 0) {
+            std.log.err("Git error: {s}", .{result.stderr});
+        }
         return;
     }
 

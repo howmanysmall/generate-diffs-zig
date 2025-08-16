@@ -10,6 +10,8 @@ pub const SuperDiffError = error{
     InvalidDateRange,
     WorktreeError,
     CherryPickFailed,
+    StdoutStreamTooLong,
+    StderrStreamTooLong,
 } || std.mem.Allocator.Error || std.process.Child.RunError || std.fs.File.WriteError;
 
 pub fn handleError(err: anyerror, stderr: anytype) void {
@@ -40,6 +42,12 @@ pub fn handleError(err: anyerror, stderr: anytype) void {
         },
         error.CherryPickFailed => {
             stderr.writeAll("Cherry-pick operation failed.\n") catch {};
+        },
+        error.StdoutStreamTooLong => {
+            stderr.writeAll("Output too large. Consider using --stat or more specific filters.\n") catch {};
+        },
+        error.StderrStreamTooLong => {
+            stderr.writeAll("Error output too large.\n") catch {};
         },
         error.OutOfMemory => {
             stderr.writeAll("Out of memory.\n") catch {};

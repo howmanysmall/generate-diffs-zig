@@ -46,8 +46,22 @@ pub fn generateSingleCommitDiff(
         .allocator = allocator,
         .argv = argv.items,
         .cwd = null,
-    }) catch {
-        return error.GitOperationFailed;
+        .max_output_bytes = 100 * 1024 * 1024, // 100MB for diffs
+    }) catch |err| {
+        switch (err) {
+            error.StdoutStreamTooLong => {
+                std.log.err("Diff output too large (>100MB). Consider using --stat or filtering commits.", .{});
+                return error.GitOperationFailed;
+            },
+            error.StderrStreamTooLong => {
+                std.log.err("Git diff error output too large.", .{});
+                return error.GitOperationFailed;
+            },
+            else => {
+                std.log.err("Git diff command failed: {}", .{err});
+                return error.GitOperationFailed;
+            },
+        }
     };
     defer allocator.free(result.stderr);
 
@@ -98,8 +112,22 @@ pub fn generateMultipleCommitDiffs(
         .allocator = allocator,
         .argv = argv.items,
         .cwd = null,
-    }) catch {
-        return error.GitOperationFailed;
+        .max_output_bytes = 100 * 1024 * 1024, // 100MB for diffs
+    }) catch |err| {
+        switch (err) {
+            error.StdoutStreamTooLong => {
+                std.log.err("Diff output too large (>100MB). Consider using --stat or filtering commits.", .{});
+                return error.GitOperationFailed;
+            },
+            error.StderrStreamTooLong => {
+                std.log.err("Git diff error output too large.", .{});
+                return error.GitOperationFailed;
+            },
+            else => {
+                std.log.err("Git diff command failed: {}", .{err});
+                return error.GitOperationFailed;
+            },
+        }
     };
     defer allocator.free(result.stderr);
 
@@ -138,8 +166,22 @@ pub fn generateRangeDiff(
         .allocator = allocator,
         .argv = argv.items,
         .cwd = null,
-    }) catch {
-        return error.GitOperationFailed;
+        .max_output_bytes = 100 * 1024 * 1024, // 100MB for diffs
+    }) catch |err| {
+        switch (err) {
+            error.StdoutStreamTooLong => {
+                std.log.err("Diff output too large (>100MB). Consider using --stat or filtering commits.", .{});
+                return error.GitOperationFailed;
+            },
+            error.StderrStreamTooLong => {
+                std.log.err("Git diff error output too large.", .{});
+                return error.GitOperationFailed;
+            },
+            else => {
+                std.log.err("Git diff command failed: {}", .{err});
+                return error.GitOperationFailed;
+            },
+        }
     };
     defer allocator.free(result.stderr);
 

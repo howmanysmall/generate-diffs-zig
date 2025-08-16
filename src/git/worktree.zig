@@ -17,6 +17,7 @@ pub const Worktree = struct {
             .allocator = allocator,
             .argv = &[_][]const u8{ "git", "worktree", "add", "--detach", worktree_path, base_commit },
             .cwd = null,
+            .max_output_bytes = 10 * 1024 * 1024, // 10MB for worktree operations
         }) catch {
             allocator.free(worktree_path);
             return error.WorktreeError;
@@ -41,6 +42,7 @@ pub const Worktree = struct {
             .allocator = self.allocator,
             .argv = &[_][]const u8{ "git", "worktree", "remove", "--force", self.path },
             .cwd = null,
+            .max_output_bytes = 1024 * 1024, // 1MB for worktree remove
         }) catch return;
         self.allocator.free(result.stdout);
         self.allocator.free(result.stderr);
@@ -54,6 +56,7 @@ pub const Worktree = struct {
             .allocator = self.allocator,
             .argv = &[_][]const u8{ "git", "cherry-pick", "-n", "-X", "theirs", commit_hash },
             .cwd = self.path,
+            .max_output_bytes = 10 * 1024 * 1024, // 10MB for cherry-pick
         }) catch {
             return error.CherryPickFailed;
         };
@@ -65,12 +68,14 @@ pub const Worktree = struct {
                 .allocator = self.allocator,
                 .argv = &[_][]const u8{ "git", "add", "-A" },
                 .cwd = self.path,
+                .max_output_bytes = 1024 * 1024, // 1MB for git add
             }) catch {};
 
             _ = std.process.Child.run(.{
                 .allocator = self.allocator,
                 .argv = &[_][]const u8{ "git", "cherry-pick", "--continue" },
                 .cwd = self.path,
+                .max_output_bytes = 1024 * 1024, // 1MB for cherry-pick continue
             }) catch {};
         }
     }
@@ -80,6 +85,7 @@ pub const Worktree = struct {
             .allocator = allocator,
             .argv = &[_][]const u8{ "git", "merge-base", from, to },
             .cwd = null,
+            .max_output_bytes = 1024 * 1024, // 1MB for merge-base
         }) catch {
             return error.GitOperationFailed;
         };

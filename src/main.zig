@@ -53,6 +53,7 @@ pub fn main() !void {
     defer repo.deinit();
 
     var author = args.author;
+    var author_needs_free = false;
     if (author == null) {
         author = repo.getDefaultAuthor() catch |err| {
             switch (err) {
@@ -63,7 +64,11 @@ pub fn main() !void {
                 else => return err,
             }
         };
+        author_needs_free = true;
     }
+    defer if (author_needs_free) {
+        if (author) |a| allocator.free(a);
+    };
 
     var range = args.range;
     if (range == null) {

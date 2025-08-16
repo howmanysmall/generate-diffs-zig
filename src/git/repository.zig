@@ -10,6 +10,7 @@ pub const Repository = struct {
             .allocator = allocator,
             .argv = &[_][]const u8{ "git", "rev-parse", "--git-dir" },
             .cwd = null,
+            .max_output_bytes = 1024 * 1024, // 1MB should be enough for git-dir
         }) catch {
             return error.NotGitRepository;
         };
@@ -50,6 +51,7 @@ pub const Repository = struct {
             .allocator = self.allocator,
             .argv = &[_][]const u8{ "git", "config", "--get", key },
             .cwd = null,
+            .max_output_bytes = 1024 * 1024, // 1MB for config values
         }) catch {
             return error.GitOperationFailed;
         };
@@ -71,6 +73,7 @@ pub const Repository = struct {
             .allocator = self.allocator,
             .argv = &[_][]const u8{ "git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}" },
             .cwd = null,
+            .max_output_bytes = 1024 * 1024, // 1MB for rev-parse
         }) catch {
             return false;
         };
@@ -85,6 +88,7 @@ pub const Repository = struct {
             .allocator = self.allocator,
             .argv = &[_][]const u8{ "git", "rev-list", range, "--max-count=1" },
             .cwd = null,
+            .max_output_bytes = 1024 * 1024, // 1MB for rev-list
         }) catch {
             return true;
         };
