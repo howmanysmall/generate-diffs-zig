@@ -1,0 +1,148 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  ZIG_VERSION: 0.13.0
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux builds
+          - target: x86_64-linux-gnu
+            runner: ubuntu-latest
+            os: linux
+            arch: x86_64
+          - target: aarch64-linux-gnu
+            runner: ubuntu-latest
+            os: linux
+            arch: aarch64
+          
+          # macOS builds
+          - target: x86_64-macos
+            runner: macos-13
+            os: macos
+            arch: x86_64
+          - target: aarch64-macos
+            runner: macos-14
+            os: macos
+            arch: aarch64
+          
+          # Windows builds
+          - target: x86_64-windows
+            runner: windows-latest
+            os: windows
+            arch: x86_64
+          - target: aarch64-windows
+            runner: windows-latest
+            os: windows
+            arch: aarch64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Zig
+        uses: goto-bus-stop/setup-zig@v2
+        with:
+          version: ${{ env.ZIG_VERSION }}
+
+      - name: Install dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgit2-dev pkg-config
+
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install libgit2 pkg-config
+
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          vcpkg install libgit2:x64-windows
+          echo "PKG_CONFIG_PATH=C:\vcpkg\installed\x64-windows\lib\pkgconfig" >> $GITHUB_ENV
+
+      - name: Extract version
+        shell: bash
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Build
+        shell: bash
+        run: |
+          if [[ "${{ matrix.target }}" == *"windows"* ]]; then
+            EXE_EXT=".exe"
+          else
+            EXE_EXT=""
+          fi
+          
+          # Build for target
+          zig build -Dtarget=${{ matrix.target }} -Doptimize=ReleaseSafe
+          
+          # Find the built executable
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            BUILT_EXE=$(find zig-out/bin -name "super-diff.exe" | head -n 1)
+          else
+            BUILT_EXE=$(find zig-out/bin -name "super-diff" | head -n 1)
+          fi
+          
+          if [[ -z "$BUILT_EXE" ]]; then
+            echo "Error: Could not find built executable"
+            ls -la zig-out/bin/
+            exit 1
+          fi
+          
+          # Copy to standard location
+          mkdir -p release
+          cp "$BUILT_EXE" "release/super-diff$EXE_EXT"
+          
+          # Create zip
+          cd release
+          if [[ "${{ runner.os }}" == "Windows" ]]; then
+            7z a "../super-diff-${{ env.VERSION }}-${{ matrix.os }}-${{ matrix.arch }}.zip" "super-diff.exe"
+          else
+            zip "../super-diff-${{ env.VERSION }}-${{ matrix.os }}-${{ matrix.arch }}.zip" "super-diff"
+          fi
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: super-diff-${{ env.VERSION }}-${{ matrix.os }}-${{ matrix.arch }}
+          path: super-diff-${{ env.VERSION }}-${{ matrix.os }}-${{ matrix.arch }}.zip
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release v${{ env.VERSION }}
+          tag_name: ${{ github.ref }}
+          draft: false
+          prerelease: false
+          files: artifacts/*/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
